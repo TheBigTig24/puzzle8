@@ -1,0 +1,1 @@
+javac TileSolver.java && javac PuzzleState.java && java TileSolver.java

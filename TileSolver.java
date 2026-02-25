@@ -1,14 +1,18 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.Stack;
 
 public class TileSolver {
 
@@ -76,7 +80,11 @@ public class TileSolver {
                 int userInput4 = scanner.nextInt();
                 switch (userInput4) {
                     case 1:
-                        handleNumMisplacedTiles(puzzle, countMisplacedTiles(puzzle));
+                        if (checkIfSolvable(puzzle)) {
+                            handleNumMisplacedTiles(puzzle, countMisplacedTiles(puzzle));
+                        } else {
+                            System.out.println("This shit is not solvable.");
+                        }
                         break;
 
                     case 2:
@@ -92,10 +100,91 @@ public class TileSolver {
     }
 
     private static void handleNumMisplacedTiles(int[][] puzzle, int currentMisplacedTiles) {
+        if (currentMisplacedTiles == 0) {
+            return;
+        }
 
+        PriorityQueue<PuzzleState> frontier = new PriorityQueue<>((a, b) -> {
+            return Integer.compare(a.getMisplacedTiles(), b.getMisplacedTiles());
+        });
+
+        Set<List<Integer>> exploredSet = new HashSet<>();
+
+        PuzzleState og = new PuzzleState(puzzle, currentMisplacedTiles, 0, null);
+        frontier.add(og);
+
+        Queue<int[][]> moveQueue;
+
+        PuzzleState solution = null;
+
+        int stepCounter = 0;
+
+        while (!frontier.isEmpty()) {
+            PuzzleState curr = frontier.poll();
+            if (exploredSet.contains(flattenPuzzle(curr.getPuzzle()))) {
+                continue;
+            }
+
+            if (curr.getMisplacedTiles() == 0) {
+                solution = new PuzzleState(curr.getPuzzle(), curr.getMisplacedTiles(), curr.getDepth(), curr.getParentPuzzle());
+                break;
+            }
+            moveQueue = addMoves(curr.getPuzzle());
+            while (!moveQueue.isEmpty()) {
+                int[][] postMoveState = moveQueue.poll();
+                frontier.add(new PuzzleState(postMoveState, countMisplacedTiles(postMoveState), curr.getDepth() + 1, curr));
+            }
+
+            addToExploredSet(exploredSet, curr.getPuzzle());
+            stepCounter++;
+
+        }
+
+        backtrackSolution(solution, exploredSet);
     }
 
-    private static 
+    private static Queue<int[][]> addMoves(int[][] puzzle) {
+        Queue<int[][]> moveQueue = new ArrayDeque<>();
+        int rowPos = -1;
+        int colPos = -1;
+        for (int i = 0; i < puzzle.length; i++) {
+            for (int j = 0; j < puzzle[i].length; j++) {
+                if (puzzle[i][j] == 0) {
+                    rowPos = i;
+                    colPos = j;
+                }
+            }
+        }
+
+        // check position above
+        if ( (rowPos - 1) >= 0)
+            moveQueue.add(swapTiles(puzzle, rowPos, colPos, rowPos - 1, colPos));
+
+        // check position below
+        if ( (rowPos + 1) < 3)
+            moveQueue.add(swapTiles(puzzle, rowPos, colPos, rowPos + 1, colPos));
+
+        // check position left
+        if ( (colPos - 1) >= 0)
+            moveQueue.add(swapTiles(puzzle, rowPos, colPos, rowPos, colPos - 1));
+
+        // check position right
+        if ( (colPos + 1) < 3)
+            moveQueue.add(swapTiles(puzzle, rowPos, colPos, rowPos, colPos + 1));
+
+        return moveQueue;
+    }
+
+    private static int[][] swapTiles(int[][] puzzle, int i0, int j0, int x, int y) {
+        int[][] newPuzzle = new int[puzzle.length][];
+        for (int i = 0; i < puzzle.length; i++) {
+            newPuzzle[i] = puzzle[i].clone();
+        }
+
+        newPuzzle[i0][j0] = newPuzzle[x][y];
+        newPuzzle[x][y] = 0;
+        return newPuzzle;
+    }
 
     private static Set<List<Integer>> addToExploredSet(Set<List<Integer>> set, int[][] puzzle) {
         set.add(flattenPuzzle(puzzle));
@@ -122,15 +211,50 @@ public class TileSolver {
                 if (i == 0 && j == 0) {
 
                 } else if (puzzle[i][j] == currentPosition) {
-                    counter++;
                     currentPosition++;
                 } else {
+                    counter++;
                     currentPosition++;
                 }
             }
         }
 
         return counter;
+    }
+
+    private static boolean checkIfSolvable(int[][] puzzle) {
+        List<Integer> flattenedPuzzle = flattenPuzzle(puzzle);
+        flattenedPuzzle.remove(flattenedPuzzle.indexOf(0));
+        int inversions = 0;
+        for (int i = 0; i < flattenedPuzzle.size(); i++) {
+            for (int j = i + 1; j < flattenedPuzzle.size(); j++) {
+                if (flattenedPuzzle.get(i) > flattenedPuzzle.get(j)) {
+                    inversions++;
+                }
+            }
+        }
+
+        return (inversions % 2) == 0  ? true : false;
+    }
+
+    private static void backtrackSolution(PuzzleState solution, Set<List<Integer>> exploredSet) {
+        PuzzleState curr = solution;
+        Stack<PuzzleState> stack = new Stack<>();
+        while (curr.getParentPuzzle() != null) {
+            stack.push(curr);
+            PuzzleState prev = curr.getParentPuzzle();
+            curr = prev;
+        }
+        stack.push(curr);
+
+        curr = stack.pop();
+        while (!stack.isEmpty()) {
+            System.out.println("Step: " + curr.getDepth());
+            printPuzzleState(curr.getPuzzle());
+            curr = stack.pop();
+        }
+        System.out.println("Step: " + curr.getDepth());
+        printPuzzleState(curr.getPuzzle());
     }
 
     private static void handleManhattanMethod() {
