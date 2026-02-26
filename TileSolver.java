@@ -56,20 +56,6 @@ public class TileSolver {
                 }
             }
 
-            // ENTER SOLUTION DEPTH
-            boolean isDone3 = false;
-            solutionDepthLoop:
-            while (!isDone3) {
-                System.out.print("Enter Solution Depth (2-20):\n");
-                int userInput3 = scanner.nextInt();
-                if (userInput3 < 2 || userInput3 > 20) {
-                    continue;
-                } else {
-                    isDone3 = true;
-                    break solutionDepthLoop;
-                }
-            }
-
             System.out.println("Puzzle:");
             printPuzzleState(puzzle);
 
@@ -88,7 +74,11 @@ public class TileSolver {
                         break;
 
                     case 2:
-                        handleManhattanMethod();
+                        if (checkIfSolvable(puzzle)) {
+                            handleManhattanMethod();
+                        } else {
+                            System.out.println("ts not solvable.");
+                        }
                         break;
 
                     default:
@@ -100,16 +90,24 @@ public class TileSolver {
     }
 
     private static void handleNumMisplacedTiles(int[][] puzzle, int currentMisplacedTiles) {
+        // init time
+        long startTime = System.nanoTime();
+
         if (currentMisplacedTiles == 0) {
             return;
         }
 
+        // Frontier as a PrioQueue comparing g(n) + h(n)
         PriorityQueue<PuzzleState> frontier = new PriorityQueue<>((a, b) -> {
-            return Integer.compare(a.getMisplacedTiles(), b.getMisplacedTiles());
+            int fnA = a.getMisplacedTiles() + a.getDepth();
+            int fnB = b.getMisplacedTiles() + b.getDepth();
+            return Integer.compare(fnA, fnB);
         });
 
+        // Explored Set as a flattened List of each Puzzle
         Set<List<Integer>> exploredSet = new HashSet<>();
 
+        // prep needed variables
         PuzzleState og = new PuzzleState(puzzle, currentMisplacedTiles, 0, null);
         frontier.add(og);
 
@@ -117,7 +115,7 @@ public class TileSolver {
 
         PuzzleState solution = null;
 
-        int stepCounter = 0;
+        int searchCost = 0;
 
         while (!frontier.isEmpty()) {
             PuzzleState curr = frontier.poll();
@@ -133,14 +131,18 @@ public class TileSolver {
             while (!moveQueue.isEmpty()) {
                 int[][] postMoveState = moveQueue.poll();
                 frontier.add(new PuzzleState(postMoveState, countMisplacedTiles(postMoveState), curr.getDepth() + 1, curr));
+                searchCost++;
             }
 
             addToExploredSet(exploredSet, curr.getPuzzle());
-            stepCounter++;
-
         }
 
-        backtrackSolution(solution, exploredSet);
+        // Calculate Time
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime);
+
+        // print solution
+        backtrackSolution(solution, exploredSet, searchCost);
     }
 
     private static Queue<int[][]> addMoves(int[][] puzzle) {
@@ -204,18 +206,14 @@ public class TileSolver {
     }
 
     private static int countMisplacedTiles(int[][] puzzle) {
-        int currentPosition = 1;
+        int expectedValue = 0;
         int counter = 0;
         for (int i = 0; i < puzzle.length; i++) {
             for (int j = 0; j < puzzle[i].length; j++) {
-                if (i == 0 && j == 0) {
-
-                } else if (puzzle[i][j] == currentPosition) {
-                    currentPosition++;
-                } else {
+                if (puzzle[i][j] != expectedValue && puzzle[i][j] != 0) {
                     counter++;
-                    currentPosition++;
                 }
+                expectedValue++;
             }
         }
 
@@ -237,7 +235,7 @@ public class TileSolver {
         return (inversions % 2) == 0  ? true : false;
     }
 
-    private static void backtrackSolution(PuzzleState solution, Set<List<Integer>> exploredSet) {
+    private static void backtrackSolution(PuzzleState solution, Set<List<Integer>> exploredSet, int searchCost) {
         PuzzleState curr = solution;
         Stack<PuzzleState> stack = new Stack<>();
         while (curr.getParentPuzzle() != null) {
@@ -255,6 +253,7 @@ public class TileSolver {
         }
         System.out.println("Step: " + curr.getDepth());
         printPuzzleState(curr.getPuzzle());
+        System.out.println("Search Cost: " + searchCost);
     }
 
     private static void handleManhattanMethod() {
