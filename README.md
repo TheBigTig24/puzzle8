@@ -1,1 +1,1 @@
-javac TileSolver.java && javac PuzzleState.java && java TileSolver.java
+javac TileSolver.java && javac PuzzleState.java && javac ManhattanState.java && java TileSolver.java

@@ -32,6 +32,8 @@ public class TileSolver {
                 break fullLoop;
             } else if (userInput1 > 3) {
                 continue;
+            } else if (userInput1 == 2) {
+                runDataTest();
             }
 
             int[][] puzzle = new int[3][3];
@@ -75,7 +77,7 @@ public class TileSolver {
 
                     case 2:
                         if (checkIfSolvable(puzzle)) {
-                            handleManhattanMethod();
+                            handleManhattanMethod(puzzle, calculateManhattanCost(puzzle));
                         } else {
                             System.out.println("ts not solvable.");
                         }
@@ -84,6 +86,7 @@ public class TileSolver {
                     default:
                         continue;
                 }
+                isDone4 = true;
             }
 
         }
@@ -143,6 +146,64 @@ public class TileSolver {
 
         // print solution
         backtrackSolution(solution, exploredSet, searchCost);
+        System.out.println("Time Cost: " + duration);
+        // System.out.print("" + searchCost + "," + duration);
+    }
+
+    private static void handleManhattanMethod(int[][] puzzle, int manhattanCost) {
+        long startTime = System.nanoTime();
+
+        if (manhattanCost == 0) {
+            return;
+        }
+
+        // Frontier as a PrioQueue
+        PriorityQueue<ManhattanState> frontier = new PriorityQueue<>((a, b) -> {
+            int fnA = a.getManhattanCost() + a.getDepth();
+            int fnB = b.getManhattanCost() + b.getDepth();
+            return Integer.compare(fnA, fnB);
+        });
+
+        // Explored Set
+        Set<List<Integer>> exploredSet = new HashSet<>();
+
+        ManhattanState og = new ManhattanState(puzzle, manhattanCost, 0, null);
+        frontier.add(og);
+
+        Queue<int[][]> moveQueue;
+
+        ManhattanState solution = null;
+
+        int searchCost = 0;
+
+        while (!frontier.isEmpty()) {
+            ManhattanState curr = frontier.poll();
+            if (exploredSet.contains(flattenPuzzle(curr.getPuzzle()))) {
+                continue;
+            }
+
+            if (curr.getManhattanCost() == 0) {
+                solution = new ManhattanState(curr.getPuzzle(), curr.getManhattanCost(), curr.getDepth(), curr.getParentPuzzle());
+                break;
+            }
+
+            moveQueue = addMoves(curr.getPuzzle());
+            while (!moveQueue.isEmpty()) {
+                int[][] postMoveState = moveQueue.poll();
+                frontier.add(new ManhattanState(postMoveState, calculateManhattanCost(postMoveState), curr.getDepth() + 1, curr));
+                searchCost++;
+            }
+
+            addToExploredSet(exploredSet, curr.getPuzzle());
+        }
+
+        long endTime = System.nanoTime();
+        long duration = (endTime - startTime);
+
+        // print solution
+        backtrackManhattan(solution, exploredSet, searchCost);
+        System.out.println("Time Cost: " + duration);
+        // System.out.print("," + searchCost + "," + duration + "\n");
     }
 
     private static Queue<int[][]> addMoves(int[][] puzzle) {
@@ -256,8 +317,56 @@ public class TileSolver {
         System.out.println("Search Cost: " + searchCost);
     }
 
-    private static void handleManhattanMethod() {
+    private static int calculateManhattanCost(int[][] puzzle) {
+        int totalCost = 0;
 
+        for (int i = 0; i < puzzle.length; i++) {
+            for (int j = 0; j < puzzle[i].length; j++) {
+                int currValue = puzzle[i][j];
+                if (currValue != 0) {
+                    int expectedRow = currValue / 3;
+                    int expectedCol = currValue % 3;
+
+                    totalCost += Math.abs((expectedRow - i)) + Math.abs(expectedCol - j);
+                }
+            }
+        }
+
+        return totalCost;
+    }
+
+    private static void backtrackManhattan(ManhattanState solution, Set<List<Integer>> exploredSet, int searchCost) {
+        ManhattanState curr = solution;
+        Stack<ManhattanState> stack = new Stack<>();
+        while (curr.getParentPuzzle() != null) {
+            stack.push(curr);
+            ManhattanState prev = curr.getParentPuzzle();
+            curr = prev;
+        }
+        stack.push(curr);
+
+        curr = stack.pop();
+        while (!stack.isEmpty()) {
+            System.out.println("Step: " + curr.getDepth());
+            printPuzzleState(curr.getPuzzle());
+            curr = stack.pop();
+        }
+        System.out.println("Step: " + curr.getDepth());
+        printPuzzleState(curr.getPuzzle());
+        System.out.println("Search Cost: " + searchCost);
+    }
+
+    private static void runDataTest() {
+        System.out.println("Puzzle\tCost_H1\tTime_H1\tCost_H2\tTime_H2");
+        for (int i = 0; i < 100; i++) {
+            // System.out.print("Puzzle " + (i + 1));
+            int[][] puzzle = generateRandomPuzzle();
+            while (!checkIfSolvable(puzzle)) {
+                puzzle = generateRandomPuzzle();
+            }
+            handleNumMisplacedTiles(puzzle, countMisplacedTiles(puzzle));
+            handleManhattanMethod(puzzle, calculateManhattanCost(puzzle));
+        }
     }
 
     private static int[][] generateRandomPuzzle() {
