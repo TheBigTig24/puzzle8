@@ -42,7 +42,7 @@ public class TileSolver {
             boolean isDone2 = false;
             innerLoop:
             while (!isDone2) {
-                System.out.print("Select Input Method:\n[1] Random\n[2] File\n");
+                System.out.print("Select Input Method:\n[1] Random\n[2] File\n[3] Input\n");
                 int userInput2 = scanner.nextInt();
                 switch (userInput2) {
                     case 1:
@@ -51,6 +51,10 @@ public class TileSolver {
                     
                     case 2:
                         puzzle = generateFilePuzzle();
+                        break innerLoop;
+
+                    case 3:
+                        puzzle = generateUserMadePuzzle(scanner);
                         break innerLoop;
 
                     default:
@@ -64,14 +68,14 @@ public class TileSolver {
             // SELECT HEURISTIC FUNCTION
             boolean isDone4 = false;
             while (!isDone4) {
-                System.out.print("Select H Function:\n[1] H1\n[2] H2");
+                System.out.print("Select H Function:\n[1] H1\n[2] H2\n");
                 int userInput4 = scanner.nextInt();
                 switch (userInput4) {
                     case 1:
                         if (checkIfSolvable(puzzle)) {
                             handleNumMisplacedTiles(puzzle, countMisplacedTiles(puzzle));
                         } else {
-                            System.out.println("This shit is not solvable.");
+                            System.out.println("Ts is not solvable.");
                         }
                         break;
 
@@ -405,12 +409,21 @@ public class TileSolver {
 
     private static int[][] generateUserMadePuzzle(Scanner scanner) {
         int[][] puzzle = new int[3][3];
+        StringBuilder inputBuilder = new StringBuilder();
         System.out.println("Enter a string of valid numbers 0-8.");
-        int input = scanner.nextInt();
-        for (int i = puzzle.length - 1; i >= 0; i--) {
-            for (int j = puzzle[i].length - 1; j >= 0; j--) {
-                puzzle[i][j] = input % 10;
-                input /= (int) 10;
+        int count = 0;
+        while (count < 9 && scanner.hasNextInt()) {
+            inputBuilder.append(scanner.nextInt());
+            count++;
+        }
+
+        String input = inputBuilder.toString();
+
+        int charNum = 0;
+        for (int i = 0; i < puzzle.length; i++) {
+            for (int j = 0; j < puzzle[i].length; j++) {
+                puzzle[i][j] = Character.getNumericValue(input.charAt(charNum));
+                charNum++;
             }
         }
         return puzzle;
